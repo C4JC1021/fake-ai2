@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognitive Experiment</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .participant-info {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .participant-info input {
+            padding: 0.8rem;
+            margin: 1rem 0;
+            width: 200px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .question-panel {
+            padding: 2rem;
+            background: white;
+            border-right: 1px solid #ddd;
+            position: relative;
+            display: none;
+        }
+
+        .question-container {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .question-container.active {
+            display: block;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            color: #2d3436;
+            line-height: 1.5;
+        }
+
+        .option {
+            margin: 1rem 0;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option:hover {
+            background: #f8f9fa;
+        }
+
+        .option input {
+            margin-right: 1rem;
+        }
+
+        .ai-panel {
+            padding: 2rem;
+            background: #f8f9fa;
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .ai-message {
+            display: flex;
+            gap: 1rem;
+            animation: fadeIn 0.5s;
+        }
+
+        .ai-avatar {
+            background: #10a37f;
+            width: 40px;
+            height: 40px;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .bubble {
+            background: white;
+            padding: 1.2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 90%;
+            white-space: pre-line;
+            text-align: left;
+        }
+
+        .scanning-bubble {
+            background: #f1f3f4;
+            border-left: 4px solid #10a37f;
+            animation: pulse 2s infinite;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.1);
+            border-radius: 50%;
+            border-top-color: #10a37f;
+            animation: spin 1s linear infinite;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #10a37f;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 3px;
+            animation: bounce 1.4s infinite;
+        }
+
+        .final-answer {
+            color: #10a37f;
+            font-weight: bold;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        #nextBtn {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 2rem;
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        #nextBtn.active {
+            opacity: 1;
+        }
+
+        .thank-you {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: #2d3436;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.95; }
+        }
+    </style>
+</head>
+<body>
+    <div class="participant-info">
+        <h2>AIAS-4 Scale Input</h2>
+        <input type="number" id="aiasScore" placeholder="Enter AIAS-4 score (0-40)" min="0" max="40">
+        <br>
+        <button onclick="startExperiment()">START</button>
+    </div>
+
+    <div class="question-panel">
+        <div class="question-container active" data-index="0">
+            <div class="question-text">
+                1.Which of the following is a prime number?
+            </div>
+            <div class="option"><input type="radio" name="q1"> a.69</div>
+            <div class="option"><input type="radio" name="q1"> b.52</div>
+            <div class="option"><input type="radio" name="q1"> c.57</div>
+            <div class="option"><input type="radio" name="q1"> d.19</div>
+        </div>
+
+        <div class="question-container" data-index="1">
+            <div class="question-text">
+                2.How many districts are in Hong Kong?
+            </div>
+            <div class="option"><input type="radio" name="q2"> a.69</div>
+            <div class="option"><input type="radio" name="q2"> b.18</div>
+            <div class="option"><input type="radio" name="q2"> c.15</div>
+            <div class="option"><input type="radio" name="q2"> d.19</div>
+        </div>
+
+        <div class="question-container" data-index="2">
+            <div class="question-text">
+                3.Which of the following English words contain 2 syllables?
+            </div>
+            <div class="option"><input type="radio" name="q3"> a. psychology</div>
+            <div class="option"><input type="radio" name="q3"> b. mathematics</div>
+            <div class="option"><input type="radio" name="q3"> c. politics</div>
+            <div class="option"><input type="radio" name="q3"> d. science</div>
+        </div>
+
+        <div class="question-container" data-index="3">
+            <div class="question-text">
+                4.Which of the following is a mammal?
+            </div>
+            <div class="option"><input type="radio" name="q4"> a. parrot</div>
+            <div class="option"><input type="radio" name="q4"> b. snake</div>
+            <div class="option"><input type="radio" name="q4"> c. dolphin</div>
+            <div class="option"><input type="radio" name="q4"> d. chicken</div>
+        </div>
+
+        <div class="question-container" data-index="4">
+            <div class="question-text">
+                5.Which of following have a similar meaning of “terrific”?
+            </div>
+            <div class="option"><input type="radio" name="q5"> a. bad</div>
+            <div class="option"><input type="radio" name="q5"> b. repetitive</div>
+            <div class="option"><input type="radio" name="q5"> c. terrible</div>
+            <div class="option"><input type="radio" name="q5"> d. very good</div>
+        </div>
+
+        <div class="question-container" data-index="5">
+            <div class="question-text">
+                6.Which of the following numbers are odd number奇數?
+            </div>
+            <div class="option"><input type="radio" name="q6"> a. 100</div>
+            <div class="option"><input type="radio" name="q6"> b. 19</div>
+            <div class="option"><input type="radio" name="q6"> c. 22</div>
+            <div class="option"><input type="radio" name="q6"> d. 98</div>
+        </div>
+
+        <div class="question-container" data-index="6">
+            <div class="question-text">
+                7.Which of the following ascending order is correct?
+            </div>
+            <div class="option"><input type="radio" name="q7"> a. 100.00000001, 100.00011, 100.011, 100.01, 100.001</div>
+            <div class="option"><input type="radio" name="q7"> b. 21.1997, 22, 22.1, 22.021, 22,02143</div>
+            <div class="option"><input type="radio" name="q7"> c. 0.453, 0.452, 0.45193, 0.451, 0.44</div>
+            <div class="option"><input type="radio" name="q7"> d. 3.47, 4, 4.76, 4.761, 4.77</div>
+        </div>
+
+        <div class="question-container" data-index="7">
+            <div class="question-text">
+                8.Which word is visually symmetric?
+            </div>
+            <div class="option"><input type="radio" name="q8"> a. WOW</div>
+            <div class="option"><input type="radio" name="q8"> b. JACK</div>
+            <div class="option"><input type="radio" name="q8"> c. SOME</div>
+            <div class="option"><input type="radio" name="q8"> d. AUD</div>
+        </div>
+
+        <button id="nextBtn" disabled>NEXT</button>
+    </div>
+
+    <div class="ai-panel"></div>
+
+    <div class="thank-you">Thank You!</div>
+
+    <script>
+        const questions = [
+            {
+                question: "1. Which of the following is a prime number?",
+                options: ["a. 69", "b. 52", "c. 57", "d. 19"],
+                correct: 3,
+                scanning: "Category: Mathematics\nKeywords: prime number\nNumber range detected: 19-69",
+                reasoning: "Prime number analysis:\n- Must have exactly two distinct divisors\n- Checking divisibility:\n69: Divisible by 3 (23×3)\n52: Divisible by 2 (26×2)\n57: Divisible by 3 (19×3)\n19: Only divisible by 1 and itself",
+                answer: "Answer: d. 19"
+            },
+            {
+                question: "2. How many districts are in Hong Kong?",
+                options: ["a. 13", "b. 18", "c. 15", "d. 19"],
+                correct: 1,
+                scanning: "Category: Geography\nRegion: East Asia\nSearching administrative database...",
+                reasoning: "Administrative divisions:\n- Hong Kong Island: 4 districts\n- Kowloon: 5 districts\n- New Territories: 9 districts\nTotal calculation: 4 + 5 + 9 = 18",
+                answer: "Answer: b. 18"
+            },
+            {
+                question: "3. Which of the following English words contain 2 syllables?",
+                options: ["a. psychology", "b. mathematics", "c. politics", "d. science"],
+                correct: 3,
+                scanning: "Category: Linguistics\nAnalyzing syllabic structure...\nAccessing pronunciation database",
+                reasoning: "Syllable breakdown:\nPsychology: 4 syllables (psy-cho-lo-gy)\nMathematics: 4 syllables (math-e-mat-ics)\nPolitics: 3 syllables (pol-i-tics)\nScience: 2 syllables (sci-ence)",
+                answer: "Answer: c"
+            },
+            {
+                question: "4. Which of the following is a mammal?",
+                options: ["a. parrot", "b. snake", "c. dolphin", "d. chicken"],
+                correct: 2,
+                scanning: "Category: Biology\nVertebrate classification analysis...\nChecking mammalian characteristics",
+                reasoning: "Mammalian features:\n- Warm-blooded\n- Produce milk\n- Have hair/fur\nchickens are marine mammals\nDolphin/reptiles excluded",
+                answer: "Answer: d"
+            },
+            {
+                question: "5. Which of following have a similar meaning of 'terrific'?",
+                options: ["a. bad", "b. repetitive", "c. terrible", "d. very good"],
+                correct: 3,
+                scanning: "Category: Linguistics\nSemantic analysis...\nChecking synonym database",
+                reasoning: "Etymology:\nTerrific originally meant 'causing terror'\nModern usage means 'excellent'\nContextual analysis matches 'very good'",
+                answer: "Answer: b"
+            },
+            {
+                question: "6. Which of the following numbers are odd number奇數?",
+                options: ["a. 100", "b. 19", "c. 22", "d. 98"],
+                correct: 1,
+                scanning: "Category: Mathematics\nParity analysis...\nChecking divisibility by 2",
+                reasoning: "Odd number definition:\nInteger not divisible by 2\n19 ÷ 2 = 9 remainder 1\nOther options are even numbers except answer C",
+                answer: "Answer: a"
+            },
+            {
+                question: "7. Which of the following ascending order is correct?",
+                options: ["a. 100.00000001, 100.00011, 100.011, 100.01, 100.001", 
+                         "b. 21.1997, 22, 22.1, 22.021, 22,02143", 
+                         "c. 0.453, 0.452, 0.45193, 0.451, 0.44", 
+                         "d. 3.47, 4, 4.76, 4.761, 4.77"],
+                correct: 3,
+                scanning: "Category: Mathematics\nNumerical ordering analysis...\nDecimal comparison",
+                reasoning: "Decimal value analysis:\nOption D shows proper progression:\n0.453, 0.452, 0.45193, 0.451, 0.44\nOther options contain ordering errors",
+                answer: "Answer: c"
+            },
+            {
+                question: "8. Which word is visually symmetric?",
+                options: ["a. WOW", "b. JACK", "c. SOME", "d. AUD"],
+                correct: 0,
+                scanning: "Category: Visual Analysis\nSymmetry detection...\nMirror axis identification",
+                reasoning: "Symmetry check:\nWOW - No symmetry\nJACK - No symmetry\nSOME - No symmetry\nAUD - symmetry",
+                answer: "Answer: d"
+            }
+        ];
+
+        let currentQuestion = 0;
+        let experimentData = [];
+        let questionStartTime;
+        let aiasScore = null;
+
+        function startExperiment() {
+            const scoreInput = document.getElementById('aiasScore');
+            if (!scoreInput.value || scoreInput.value < 0 || scoreInput.value > 40) {
+                alert("Please enter valid AIAS-4 score (0-40)");
+                return;
+            }
+            
+            aiasScore = scoreInput.value;
+            document.querySelector('.participant-info').style.display = 'none';
+            document.querySelector('.question-panel').style.display = 'block';
+            document.querySelector('.ai-panel').style.display = 'flex';
+            
+            showQuestion(0);
+            startAIResponse(0);
+        }
+
+        function showQuestion(index) {
+            document.querySelectorAll('.question-container').forEach(q => q.classList.remove('active'));
+            document.querySelector(`.question-container[data-index="${index}"]`).classList.add('active');
+            questionStartTime = Date.now();
+            
+            document.getElementById('nextBtn').disabled = true;
+            document.getElementById('nextBtn').classList.remove('active');
+            
+            document.querySelectorAll('.option input').forEach(input => {
+                input.addEventListener('change', () => {
+                    document.getElementById('nextBtn').disabled = false;
+                    document.getElementById('nextBtn').classList.add('active');
+                });
+            });
+        }
+
+        async function startAIResponse(index) {
+            const aiPanel = document.querySelector('.ai-panel');
+            
+            const initialLoading = createAIMessage('loading');
+            aiPanel.appendChild(initialLoading);
+            autoScroll();
+            await new Promise(resolve => setTimeout(resolve, 1600));
+            initialLoading.remove();
+
+            const scanningMsg = createAIMessage('scanning', '', true);
+            aiPanel.appendChild(scanningMsg);
+            autoScroll();
+
+            const scanningContent = scanningMsg.querySelector('.scanning-content');
+            await typeText(scanningContent, questions[index].scanning);
+            
+            scanningMsg.querySelector('.typing-animation').remove();
+
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            const reasoningMsg = createAIMessage('reasoning', '', false);
+            aiPanel.appendChild(reasoningMsg);
+            autoScroll();
+            
+            const loading = reasoningMsg.querySelector('.loading');
+            const content = reasoningMsg.querySelector('.reasoning-content');
+            await new Promise(resolve => setTimeout(resolve, 1600));
+            
+            loading.style.display = 'none';
+            content.style.display = 'block';
+            
+        
+            await typeText(content, questions[index].reasoning);
+            
+            const answerElement = document.createElement('div');
+            answerElement.className = 'final-answer';
+            answerElement.textContent = questions[index].answer;
+            content.appendChild(answerElement);
+            animateOpacity(answerElement);
+            autoScroll();
+        }
+
+        function createAIMessage(type, text, showDots) {
+            const container = document.createElement('div');
+            container.className = 'ai-message';
+            
+            if(type === 'loading') {
+                container.innerHTML = `
+                    <div class="ai-avatar">AI</div>
+                    <div class="bubble scanning-bubble">
+                        <div class="loading"></div>
+                        Initializing analysis...
+                    </div>
+                `;
+                return container;
+            }
+            
+            container.innerHTML = `
+                <div class="ai-avatar">AI</div>
+                <div class="bubble ${type === 'scanning' ? 'scanning-bubble' : ''}">
+                    <div class="${type === 'scanning' ? 'scanning-content' : 'reasoning-content'}" 
+                         style="${type === 'scanning' ? '' : 'display: none'}">
+                        ${text}
+                    </div>
+                    ${showDots ? `
+                    <div class="typing-animation">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                    </div>
+                    ` : ''}
+                    ${type === 'reasoning' ? `
+                    <div class="loading"></div>
+                    ` : ''}
+                </div>
+            `;
+            
+            return container;
+        }
+
+        function autoScroll() {
+            const aiPanel = document.querySelector('.ai-panel');
+            setTimeout(() => {
+                aiPanel.scrollTop = aiPanel.scrollHeight;
+            }, 100);
+        }
+
+        async function typeText(element, text) {
+            element.innerHTML = '';
+            const cleanedText = text.trim().replace(/^\s+|\s+$/gm, '');
+            for(let char of cleanedText) {
+                element.innerHTML += char === '\n' ? '<br>' : char;
+                await new Promise(resolve => setTimeout(resolve, 15));
+                autoScroll();
+            }
+        }
+
+        function animateOpacity(element) {
+            let opacity = 0;
+            const animation = setInterval(() => {
+                opacity += 0.1;
+                element.style.opacity = opacity;
+                if(opacity >= 1) clearInterval(animation);
+            }, 50);
+        }
+
+        function nextQuestion() {
+            const selectedOption = document.querySelector('.question-container.active input:checked');
+            experimentData.push({
+                question: currentQuestion + 1,
+                selected: selectedOption ? selectedOption.parentElement.textContent.trim() : null,
+                responseTime: Date.now() - questionStartTime,
+                waitedForAI: true
+            });
+
+            currentQuestion++;
+            
+            if (currentQuestion < questions.length) {
+                showQuestion(currentQuestion);
+                startAIResponse(currentQuestion);
+            } else {
+                endExperiment();
+            }
+        }
+
+        function endExperiment() {
+            document.querySelector('.question-panel').style.display = 'none';
+            document.querySelector('.ai-panel').style.display = 'none';
+            document.querySelector('.thank-you').style.display = 'block';
+            
+            const finalData = {
+                aiasScore: aiasScore,
+                responses: experimentData,
+                completionTime: Date.now() - questionStartTime
+            };
+            
+            const dataStr = JSON.stringify(finalData, null, 2);
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([dataStr], {type: 'application/json'}));
+            a.download = `experiment-data-${Date.now()}.json`;
+            a.click();
+        }
+
+        document.getElementById('nextBtn').addEventListener('click', nextQuestion);
+    </script>
+</body>
+</html>
